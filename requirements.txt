@@ -3,7 +3,7 @@ beautifulsoup4
 playwright
 pandas
 selenium
-linkedin-api
+linkedin-api==2.0.0
 jinja2
 schedule
 flask
