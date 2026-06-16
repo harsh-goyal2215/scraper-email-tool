@@ -252,6 +252,8 @@ with tab_scrape:
                 if cleaned:
                     # Save clean leads
                     save_csv(cleaned, Config.LEADS_CSV_PATH)
+                    save_csv(cleaned, Config.LEADS_CSV_PATH)
+                    st.write("CLEANED LEADS:", cleaned)
                     st.success(f"Deduplicated and saved {len(cleaned)} leads directly to '{Config.LEADS_CSV_PATH.name}'!")
                     # Force reload leads view
                     st.rerun()
