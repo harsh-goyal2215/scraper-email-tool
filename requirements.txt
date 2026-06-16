@@ -1,0 +1,12 @@
+requests
+beautifulsoup4
+playwright
+pandas
+selenium
+linkedin-api
+jinja2
+schedule
+flask
+streamlit
+python-dotenv
+validators

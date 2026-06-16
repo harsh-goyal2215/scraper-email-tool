@@ -1,0 +1,1 @@
+# Emailer package initialization
