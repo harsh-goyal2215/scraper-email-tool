@@ -181,7 +181,7 @@ with tab_scrape:
     
     scrape_source = st.radio("Choose lead generation method:", ["Web URL Scraping", "LinkedIn Keyword Search"], horizontal=True)
     
-    scraped_leads = []
+    scraped_leads = st.session_state.get("scraped_leads", [])
     
     if scrape_source == "Web URL Scraping":
         col_input, col_opts = st.columns([2, 1])
@@ -209,6 +209,7 @@ with tab_scrape:
                 
                 with st.spinner("Executing scraper scripts..."):
                     scraped_leads = bulk_scrape(urls, scrape_type=scrape_type, progress_callback=progress_cb)
+                    st.session_state["scraped_leads"] = scraped_leads
                 
                 st.success(f"Finished scraping. Found {len(scraped_leads)} leads.")
             else:
