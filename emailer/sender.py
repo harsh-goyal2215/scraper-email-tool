@@ -125,9 +125,13 @@ def bulk_send(leads, subject_template, body_template, sender_name, method='smtp'
         # 1. Render subject template if it contains Jinja placeholders
         subj_tmpl = Template(subject_template)
         subject = subj_tmpl.render(company=lead.get('company', ''))
+        if '_unique_ref' in lead:
+            subject = f"{subject} [Ref: #{lead['_unique_ref']}]"
         
         # 2. Render HTML body template
         body = render_email(lead, sender_name, body_template, custom_message)
+        if '_unique_ref' in lead:
+            body += f'\n<div style="display:none;font-size:1px;color:#ffffff;line-height:1px;opacity:0;">Ref ID: {lead["_unique_ref"]}</div>'
         
         # 3. Add tracking pixel and unsubscribe links
         tracked_body = add_tracking_and_unsubscribe(body, email, token)

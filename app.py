@@ -144,10 +144,10 @@ with st.sidebar:
     smtp_pass = st.text_input("SMTP Password", value=Config.SMTP_PASSWORD, type="password")
     
     # Save parameters to Config class instance
-    Config.SMTP_HOST = smtp_host
-    Config.SMTP_PORT = smtp_port
-    Config.SMTP_USER = smtp_user
-    Config.SMTP_PASSWORD = smtp_pass
+    Config.SMTP_HOST = smtp_host.strip() if smtp_host else ""
+    Config.SMTP_PORT = int(smtp_port) if smtp_port else 587
+    Config.SMTP_USER = smtp_user.strip() if smtp_user else ""
+    Config.SMTP_PASSWORD = smtp_pass.strip() if smtp_pass else ""
 
     st.markdown("---")
     st.subheader("📬 Mailgun Settings (Optional)")
@@ -159,12 +159,15 @@ with st.sidebar:
     st.markdown("---")
     st.subheader("🔑 External APIs & Scraping")
     hunter_key = st.text_input("Hunter.io API Key", value=Config.HUNTER_API_KEY)
-    Config.HUNTER_API_KEY = hunter_key
+    Config.HUNTER_API_KEY = hunter_key.strip() if hunter_key else ""
+    
+    serpapi_key = st.text_input("SerpAPI API Key (for Google fallback search):", value=Config.SERPAPI_API_KEY, type="password")
+    Config.SERPAPI_API_KEY = serpapi_key.strip() if serpapi_key else ""
     
     li_username = st.text_input("LinkedIn Username", value=Config.LINKEDIN_USERNAME)
     li_password = st.text_input("LinkedIn Password", value=Config.LINKEDIN_PASSWORD, type="password")
-    Config.LINKEDIN_USERNAME = li_username
-    Config.LINKEDIN_PASSWORD = li_password
+    Config.LINKEDIN_USERNAME = li_username.strip() if li_username else ""
+    Config.LINKEDIN_PASSWORD = li_password.strip() if li_password else ""
 
 # Tabs Setup
 tab_scrape, tab_campaign, tab_analytics = st.tabs([
@@ -234,6 +237,7 @@ with tab_scrape:
                     username=Config.LINKEDIN_USERNAME, 
                     password=Config.LINKEDIN_PASSWORD
                 )
+                st.session_state["scraped_leads"] = scraped_leads
             st.success(f"Finished querying. Retrieved {len(scraped_leads)} profiles.")
             
     # Cleaning, deduplication, and export configuration
@@ -336,6 +340,24 @@ with tab_campaign:
                 
         st.markdown("---")
         st.subheader("Campaign Dispatch Operations")
+        
+        # New options row to specify number of emails and override recipient
+        col_limit1, col_limit2 = st.columns(2)
+        with col_limit1:
+            override_email = st.text_input(
+                "Override Recipient Email (Optional - redirects all emails to this address for testing):",
+                value="",
+                help="Enter a test email address. If set, all generated emails will be sent to this specific address instead of the leads'."
+            )
+        with col_limit2:
+            num_emails = st.number_input(
+                "Number of Emails to Send:",
+                min_value=1,
+                value=min(10, len(leads_list)) if leads_list else 10,
+                step=1,
+                help="Specify the total number of emails to dispatch. If this exceeds the number of available leads, the list will cycle/repeat."
+            )
+
         col_opts1, col_opts2 = st.columns(2)
         with col_opts1:
             send_method = st.selectbox("Dispatch Engine Gateway:", ["SMTP", "Mailgun"], index=0)
@@ -351,21 +373,35 @@ with tab_campaign:
                 is_ready = False
                 
             if st.button("🚀 Dispatch Bulk Campaign", type="primary", disabled=not is_ready):
+                import uuid
+                # Generate exact number of leads requested by repeating/cycling through leads_list
+                leads_to_send = []
+                if leads_list:
+                    for i in range(int(num_emails)):
+                        lead = dict(leads_list[i % len(leads_list)])
+                        # Add unique reference ID to make each email content cryptographically unique
+                        lead['_unique_ref'] = f"{i+1}-{uuid.uuid4().hex[:6]}"
+                        
+                        # Apply override email redirect if set
+                        if override_email.strip():
+                            lead['email'] = override_email.strip()
+                            
+                        leads_to_send.append(lead)
+                
                 progress_bar = st.progress(0)
                 status_box = st.empty()
                 log_box = st.code("Initiating email send thread...\n")
                 
-                log_content = ""
+                log_content_container = [""]
                 def bulk_progress_cb(current, total, email, status):
-                    global log_content
                     progress_bar.progress(current / total)
                     status_box.text(f"Processed email {current}/{total}: {email}")
-                    log_content += f"[{status.upper()}] Sent email to {email}\n"
-                    log_box.code(log_content)
+                    log_content_container[0] += f"[{status.upper()}] Sent email to {email}\n"
+                    log_box.code(log_content_container[0])
                     
                 with st.spinner("Dispatching campaign..."):
                     bulk_send(
-                        leads=leads_list,
+                        leads=leads_to_send,
                         subject_template=subject_tmpl,
                         body_template=body_tmpl,
                         sender_name=sender_name,
@@ -374,6 +410,7 @@ with tab_campaign:
                         progress_callback=bulk_progress_cb
                     )
                 st.success("Campaign dispatch run completed! Check logs in Tab 3.")
+
 
 # ==========================================
 # TAB 3: Analytics & Logs

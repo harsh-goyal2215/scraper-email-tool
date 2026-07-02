@@ -24,6 +24,9 @@ class Config:
     # Hunter.io Configuration
     HUNTER_API_KEY = os.getenv('HUNTER_API_KEY', '')
 
+    # SerpAPI Configuration (For Google Dorking fallback)
+    SERPAPI_API_KEY = os.getenv('SERPAPI_API_KEY', '')
+
     # Tracking Configuration
     TRACKING_SERVER_URL = os.getenv('TRACKING_SERVER_URL', 'http://localhost:5000')
 

@@ -1,6 +1,2 @@
 first_name,last_name,email,company,title,phone,source_url,source_type
-Sarah,Brown,sarah.brown@techcorp.com,TechCorp,Senior Marketing Manager,+1 (555) 100-2000,https://www.linkedin.com/in/sarah-brown-0,LinkedIn (Mock)
-Michael,Jones,michael.jones@apexsystems.com,ApexSystems,Marketing Manager Lead,+1 (555) 101-2001,https://www.linkedin.com/in/michael-jones-1,LinkedIn (Mock)
-David,Miller,david.miller@devstudio.com,DevStudio,Senior Marketing Manager,+1 (555) 102-2002,https://www.linkedin.com/in/david-miller-2,LinkedIn (Mock)
-Emma,Davis,emma.davis@zenithinc.com,ZenithInc,Marketing Manager Lead,+1 (555) 103-2003,https://www.linkedin.com/in/emma-davis-3,LinkedIn (Mock)
-John,Garcia,john.garcia@innovatellc.com,InnovateLLC,Senior Marketing Manager,+1 (555) 104-2004,https://www.linkedin.com/in/john-garcia-4,LinkedIn (Mock)
+Shop,Kidswear Online,customercare@abfrl.adityabirla.com,Pantaloons,,,https://www.pantaloons.com/?utm_source=bp&utm_medium=S&utm_campaign=PFX_Search_PureBrand_Exact&utm_content=Pantaloons_Exact&msclkid=9e5dda42406612c80b61b00408d5ad1a&utm_term=pantaloons,Web Scraper

@@ -20,7 +20,11 @@ def search_people(keyword, location=None, count=10, username=None, password=None
     
     # Check if credentials are present
     if not u or not p or not Linkedin:
-        print("LinkedIn credentials not fully configured or package missing. Using mock generator fallback.")
+        print("LinkedIn credentials not fully configured. Executing public search scraping alternative...")
+        public_results = scrape_public_linkedin_profiles(keyword, location, count)
+        if public_results:
+            return public_results
+        print("Public scraping returned 0 results. Falling back to mock generator.")
         return generate_mock_linkedin_leads(keyword, location, count)
         
     try:
@@ -60,8 +64,171 @@ def search_people(keyword, location=None, count=10, username=None, password=None
             })
         return leads
     except Exception as e:
-        print(f"LinkedIn API error: {e}. Falling back to mock generator.")
+        print(f"LinkedIn API error: {e}. Executing public search scraping alternative...")
+        public_results = scrape_public_linkedin_profiles(keyword, location, count)
+        if public_results:
+            return public_results
+        print("Public scraping returned 0 results. Falling back to mock generator.")
         return generate_mock_linkedin_leads(keyword, location, count)
+
+def scrape_public_linkedin_profiles(keyword, location, count):
+    """
+    Scrapes Google Search using search operators to find indexable public LinkedIn profile URLs
+    matching the keyword and location parameters. Falls back to SerpAPI if configured.
+    """
+    from bs4 import BeautifulSoup
+    import time
+    import random
+    
+    query = f'site:linkedin.com/in/ "{keyword}"'
+    if location:
+        query += f' "{location}"'
+        
+    leads = []
+    
+    # Fallback to SerpAPI if API key is provided
+    if Config.SERPAPI_API_KEY:
+        print("Using SerpAPI for Google Search query...")
+        serp_url = "https://serpapi.com/search"
+        params = {
+            "q": query,
+            "api_key": Config.SERPAPI_API_KEY,
+            "engine": "google",
+            "num": count
+        }
+        try:
+            res = requests.get(serp_url, params=params, timeout=12)
+            if res.status_code == 200:
+                results = res.json().get('organic_results', [])
+                for item in results:
+                    href = item.get('link', '')
+                    if 'linkedin.com/in/' not in href:
+                        continue
+                    
+                    title_text = item.get('title', '')
+                    first_name = ''
+                    last_name = ''
+                    title = keyword
+                    company = ''
+                    
+                    clean_title = title_text.replace(' - LinkedIn', '').replace(' | LinkedIn', '')
+                    parts = [p.strip() for p in clean_title.split('-')]
+                    if parts:
+                        name_part = parts[0]
+                        name_words = name_part.split()
+                        if len(name_words) >= 1:
+                            first_name = name_words[0]
+                        if len(name_words) >= 2:
+                            last_name = ' '.join(name_words[1:])
+                        if len(parts) > 1:
+                            title = parts[1]
+                        if len(parts) > 2:
+                            company = parts[2]
+                            
+                    guessed_email = ""
+                    if first_name and last_name and company:
+                        clean_comp = re.sub(r'[^\w]', '', company).lower()
+                        guessed_email = f"{first_name.lower()}.{last_name.lower()}@{clean_comp}.com"
+                    else:
+                        guessed_email = f"{first_name.lower() or 'contact'}@company.com"
+                        
+                    leads.append({
+                        'first_name': first_name,
+                        'last_name': last_name,
+                        'email': guessed_email,
+                        'company': company or 'Undetected Company',
+                        'title': title or keyword,
+                        'phone': '',
+                        'source_url': href,
+                        'source_type': 'LinkedIn (SerpAPI)'
+                    })
+                if leads:
+                    return leads
+        except Exception as serp_ex:
+            print(f"SerpAPI query failed: {serp_ex}. Proceeding with HTML scraping...")
+
+    # HTML Scraping Fallback
+    url = f"https://www.google.com/search?q={urllib.parse.quote_plus(query)}&num={count + 5}"
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+    }
+    
+    try:
+        res = requests.get(url, headers=headers, timeout=10)
+        if res.status_code != 200:
+            return []
+            
+        soup = BeautifulSoup(res.text, 'html.parser')
+        
+        # Google search results are in anchors under div.g or inside h3 tags
+        for element in soup.select('div.g'):
+            link_tag = element.find('a')
+            if not link_tag:
+                continue
+            href = link_tag.get('href', '')
+            if 'linkedin.com/in/' not in href:
+                continue
+                
+            # Clean Google redirect links if present
+            if '/url?q=' in href:
+                href = href.split('/url?q=')[1].split('&')[0]
+                href = urllib.parse.unquote(href)
+                
+            title_tag = element.find('h3')
+            title_text = title_tag.get_text() if title_tag else ''
+            
+            # Google titles usually format as: "First Last - Job Title - Company | LinkedIn"
+            # Parse names out of title text
+            first_name = ''
+            last_name = ''
+            title = keyword
+            company = ''
+            
+            clean_title = title_text.replace(' - LinkedIn', '').replace(' | LinkedIn', '')
+            parts = [p.strip() for p in clean_title.split('-')]
+            
+            if parts:
+                name_part = parts[0]
+                name_words = name_part.split()
+                if len(name_words) >= 1:
+                    first_name = name_words[0]
+                if len(name_words) >= 2:
+                    last_name = ' '.join(name_words[1:])
+                    
+                if len(parts) > 1:
+                    title = parts[1]
+                if len(parts) > 2:
+                    company = parts[2]
+            
+            # Guess email from company name if available
+            guessed_email = ""
+            if first_name and last_name and company:
+                clean_comp = re.sub(r'[^\w]', '', company).lower()
+                guessed_email = f"{first_name.lower()}.{last_name.lower()}@{clean_comp}.com"
+            else:
+                # General default guess fallback
+                guessed_email = f"{first_name.lower() or 'contact'}@company.com"
+                
+            leads.append({
+                'first_name': first_name,
+                'last_name': last_name,
+                'email': guessed_email,
+                'company': company or 'Undetected Company',
+                'title': title or keyword,
+                'phone': '',
+                'source_url': href,
+                'source_type': 'LinkedIn (Public Search)'
+            })
+            
+            if len(leads) >= count:
+                break
+                
+            time.sleep(random.uniform(0.5, 1.5))
+            
+        return leads
+    except Exception as ex:
+        print(f"Failed to scrape public profiles: {ex}")
+        return []
 
 def generate_mock_linkedin_leads(keyword, location, count):
     """
